@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Dashboards built from REAL logs must never be committed.
+# (examples/demo.html is generated from synthetic data and IS tracked.)
+/claudeinsights.html
+*.local.html
+stats.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ClaudeInsights — your Claude Code analytics</title>
+<style>
+  :root{
+    --bg:#15120e; --bg2:#1c1814; --card:#221d17; --card2:#2a241d;
+    --line:#352d24; --text:#efe7da; --muted:#a59683; --muted2:#736756;
+    --accent:#e0855a; --accent2:#f0b07e; --teal:#5ec8c0; --violet:#9d8cf0;
+    --good:#6fcf97; --warn:#f2c94c; --bad:#eb5757;
+    --r:16px; --r2:12px;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.45}
+  a{color:var(--accent2);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)} .small{font-size:12px}
+
+  /* hero */
+  header.hero{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+    gap:18px;margin-bottom:26px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{width:46px;height:46px;border-radius:13px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:24px;
+    box-shadow:0 6px 24px rgba(224,133,90,.32)}
+  h1{font-size:25px;margin:0;letter-spacing:-.4px}
+  .tag{color:var(--muted);font-size:14px;margin-top:2px}
+  .period{text-align:right;color:var(--muted);font-size:13px;line-height:1.6}
+  .period b{color:var(--text)}
+
+  .banner{background:linear-gradient(90deg,rgba(242,201,76,.12),transparent);
+    border:1px solid rgba(242,201,76,.32);border-radius:var(--r2);
+    padding:10px 14px;margin:0 0 22px;font-size:13px;color:#f0d9a0}
+
+  /* kpi cards */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:26px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 17px;
+    position:relative;overflow:hidden}
+  .kpi::after{content:'';position:absolute;inset:0 0 auto 0;height:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .kpi .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  .kpi .val{font-size:27px;font-weight:650;margin-top:7px;font-family:var(--mono);letter-spacing:-1px}
+  .kpi .sub{color:var(--muted2);font-size:12px;margin-top:3px}
+  .kpi.teal::after{background:linear-gradient(90deg,var(--teal),#9be3dd)}
+  .kpi.violet::after{background:linear-gradient(90deg,var(--violet),#c2b6ff)}
+  .kpi.good::after{background:linear-gradient(90deg,var(--good),#a8e6c0)}
+
+  /* sections + cards */
+  section{margin-bottom:30px}
+  h2{font-size:16px;margin:0 0 14px;letter-spacing:-.2px;display:flex;align-items:center;gap:9px}
+  h2 .hint{font-size:12px;color:var(--muted2);font-weight:400;letter-spacing:0}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+
+  /* insights */
+  .insights{display:grid;gap:10px}
+  .insight{display:flex;gap:12px;align-items:flex-start;background:var(--card);
+    border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:var(--r2);padding:12px 15px;font-size:14px}
+  .insight .ic{font-size:18px;flex:0 0 auto;line-height:1.3}
+  .insight b{color:var(--accent2);font-weight:650}
+
+  /* bars */
+  .bars{display:grid;gap:9px}
+  .bar-row{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;font-size:13px}
+  .bar-row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{background:var(--bg2);border-radius:7px;height:22px;overflow:hidden;position:relative}
+  .bar-fill{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    min-width:2px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .bar-fill.teal{background:linear-gradient(90deg,var(--teal),#9be3dd)}
+  .bar-fill.violet{background:linear-gradient(90deg,var(--violet),#c2b6ff)}
+  .bar-row .vv{font-family:var(--mono);color:var(--muted);text-align:right;min-width:78px}
+  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;
+    background:var(--card2);color:var(--muted);border:1px solid var(--line);margin-left:6px}
+  .pill.mcp{color:var(--violet);border-color:rgba(157,140,240,.4)}
+  .pill.unpriced{color:var(--warn);border-color:rgba(242,201,76,.4)}
+
+  /* heatmap */
+  .heat{display:flex;gap:14px;align-items:flex-start;overflow-x:auto;padding-bottom:6px}
+  .heat svg{display:block}
+  .heat-legend{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:12px;margin-top:10px}
+  .heat-legend i{width:13px;height:13px;border-radius:3px;display:inline-block}
+
+  /* svg chart */
+  .chart{width:100%;height:auto;display:block}
+  .axis{fill:var(--muted2);font-size:10px;font-family:var(--mono)}
+  .toggle{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-left:auto}
+  .toggle button{background:transparent;border:0;color:var(--muted);padding:5px 12px;font-size:12px;cursor:pointer}
+  .toggle button.on{background:var(--accent);color:#1b130d;font-weight:600}
+
+  /* mini bars (hour/weekday) */
+  .mini{display:flex;align-items:flex-end;gap:3px;height:120px}
+  .mini .b{flex:1;background:linear-gradient(180deg,var(--accent2),var(--accent));
+    border-radius:3px 3px 0 0;min-height:2px;position:relative}
+  .mini .b.teal{background:linear-gradient(180deg,#9be3dd,var(--teal))}
+  .mini-x{display:flex;gap:3px;margin-top:6px}
+  .mini-x span{flex:1;text-align:center;font-size:9px;color:var(--muted2);font-family:var(--mono)}
+
+  /* leaderboard */
+  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .tabs button{background:var(--card2);border:1px solid var(--line);color:var(--muted);
+    padding:6px 14px;border-radius:9px;font-size:13px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#1b130d;border-color:var(--accent);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted2);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  td.n{font-family:var(--mono);text-align:right} th.n{text-align:right}
+  tr:hover td{background:var(--card2)}
+  .rank{color:var(--muted2);font-family:var(--mono)}
+
+  /* wrapped */
+  .wrapped{background:
+      radial-gradient(900px 280px at 12% -10%,rgba(224,133,90,.30),transparent),
+      radial-gradient(700px 260px at 100% 0%,rgba(157,140,240,.22),transparent),
+      var(--card);
+    border:1px solid var(--line);border-radius:22px;padding:26px;overflow:hidden}
+  .wrapped .top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+  .persona{display:flex;align-items:center;gap:14px}
+  .persona .pe{font-size:42px}
+  .persona .pt{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .persona .pn{font-size:26px;font-weight:700;letter-spacing:-.5px;
+    background:linear-gradient(90deg,var(--accent2),var(--violet));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .persona .pw{font-size:13px;color:var(--muted);margin-top:2px;max-width:380px}
+  .wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px;margin-top:24px}
+  .wstat .v{font-size:24px;font-weight:700;font-family:var(--mono);letter-spacing:-1px}
+  .wstat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .wfoot{margin-top:22px;font-size:12px;color:var(--muted2);display:flex;gap:18px;flex-wrap:wrap}
+  .wfoot b{color:var(--text)}
+
+  footer{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--muted2);font-size:12px;line-height:1.7}
+  .empty{padding:60px 20px;text-align:center;color:var(--muted)}
+  code{font-family:var(--mono);background:var(--bg2);padding:1px 6px;border-radius:5px;font-size:.92em}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Loading…</div></div>
+
+<script>
+const DATA = /*__CLAUDEINSIGHTS_DATA__*/null;
+
+/* ---------- formatting (mirrors claudeinsights/util.py) ---------- */
+function hInt(n){n=+n||0;const u=[["B",1e9],["M",1e6],["K",1e3]];
+  for(const[s,d]of u){if(Math.abs(n)>=d){let v=(n/d);let r=v.toFixed(2).replace(/\.?0+$/,"");return r+s;}}
+  return String(Math.round(n));}
+function hMoney(x){x=+x||0;if(x===0)return"$0.00";
+  if(Math.abs(x)<0.01)return"$"+x.toFixed(4);
+  if(Math.abs(x)<1)return"$"+x.toFixed(3);
+  return"$"+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function md(s){return esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`(.+?)`/g,"<code>$1</code>");}
+const COLORS=["var(--accent)","var(--teal)","var(--violet)","var(--good)","var(--accent2)","var(--warn)"];
+
+/* ---------- builders ---------- */
+function el(html){const t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstChild;}
+
+function kpis(d){
+  const t=d.totals,tk=t.tokens;
+  const cells=[
+    ["Total spend",hMoney(t.cost),t.cache_savings>0?("saved "+hMoney(t.cache_savings)+" via cache"):"all-time","good"],
+    ["Tokens",hInt(tk.total),hInt(tk.output)+" output","accent"],
+    ["Sessions",hInt(t.sessions),hInt(t.prompts)+" prompts","teal"],
+    ["Active days",hInt(t.active_days),(t.first_day||"")+" → "+(t.last_day||""),"violet"],
+    ["Assistant turns",hInt(t.assistant_turns),hInt(d.by_tool.reduce((a,x)=>a+x.count,0))+" tool calls",""],
+    ["Cache reads",hInt(tk.cache_read),pctOf(tk.cache_read,tk.cache_read+tk.input)+"% of context","teal"],
+  ];
+  const wrap=el('<div class="kpis"></div>');
+  for(const[l,v,s,c]of cells)
+    wrap.appendChild(el(`<div class="kpi ${c}"><div class="label">${esc(l)}</div><div class="val">${esc(v)}</div><div class="sub">${esc(s)}</div></div>`));
+  return wrap;
+}
+function pctOf(a,b){return b?Math.round(100*a/b):0;}
+
+function insightFeed(list){
+  if(!list.length)return null;
+  const s=el('<section><h2>💡 Insight Feed <span class="hint">facts pulled straight from your logs</span></h2><div class="insights"></div></section>');
+  const box=s.querySelector(".insights");
+  list.forEach(i=>box.appendChild(el(`<div class="insight"><span class="ic">${esc(i.icon)}</span><div>${md(i.text)}</div></div>`)));
+  return s;
+}
+
+function barList(items,opts){
+  const max=Math.max(1,...items.map(opts.value));
+  const box=el('<div class="bars"></div>');
+  items.slice(0,opts.limit||12).forEach((it,idx)=>{
+    const v=opts.value(it),w=(100*v/max).toFixed(1);
+    const cls=opts.color?opts.color(it,idx):(idx===0?"":(idx===1?"teal":"violet"));
+    box.appendChild(el(
+      `<div class="bar-row"><div class="nm" title="${esc(opts.name(it))}">${esc(opts.name(it))}${opts.tag?opts.tag(it):""}</div>`+
+      `<div class="bar-track"><div class="bar-fill ${cls}" style="width:${w}%"></div></div>`+
+      `<div class="vv">${esc(opts.label(it))}</div></div>`));
+  });
+  return box;
+}
+
+/* heatmap: GitHub-style calendar from daily token totals */
+function heatmap(daily){
+  if(!daily.length)return null;
+  const map={};daily.forEach(d=>map[d.date]=d.tokens);
+  const start=new Date(daily[0].date+"T00:00:00");
+  const end=new Date(daily[daily.length-1].date+"T00:00:00");
+  // pad start back to Sunday
+  const s=new Date(start);s.setDate(s.getDate()-((s.getDay())));
+  const vals=daily.map(d=>d.tokens).filter(v=>v>0).sort((a,b)=>a-b);
+  const q=p=>vals.length?vals[Math.min(vals.length-1,Math.floor(p*vals.length))]:0;
+  const th=[q(.25),q(.5),q(.75),q(.92)];
+  const sc=["#241f19","#5b3621","#8a4d28","#c06a33","#e0855a"];
+  function lvl(v){if(!v)return 0;for(let i=0;i<th.length;i++)if(v<=th[i])return i+1;return 5;}
+  const cell=13,gap=3,wk=cell+gap;
+  const weeks=Math.ceil((end-s)/(7*864e5))+1;
+  let rects="",months="";let lastM=-1;
+  for(let w=0;w<weeks;w++){
+    for(let dow=0;dow<7;dow++){
+      const dt=new Date(s);dt.setDate(s.getDate()+w*7+dow);
+      if(dt>end)continue;
+      const key=dt.toISOString().slice(0,10);const v=map[key]||0;
+      const x=w*wk,y=dow*wk;
+      rects+=`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${sc[lvl(v)]}"><title>${key}: ${hInt(v)} tokens</title></rect>`;
+      if(dt.getDate()<=7 && dt.getMonth()!==lastM){lastM=dt.getMonth();
+        months+=`<text class="axis" x="${x}" y="-4">${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()]}</text>`;}
+    }
+  }
+  const W=weeks*wk,H=7*wk;
+  const days=["","Mon","","Wed","","Fri",""];
+  let dl="";days.forEach((d,i)=>{if(d)dl+=`<text class="axis" x="-26" y="${i*wk+10}">${d}</text>`;});
+  const s2=el('<section><h2>📅 Activity Heatmap <span class="hint">darker = more tokens that day</span></h2><div class="panel"><div class="heat"></div><div class="heat-legend">Less '+sc.map(c=>`<i style="background:${c}"></i>`).join("")+' More</div></div></section>');
+  s2.querySelector(".heat").innerHTML=
+    `<svg class="chart" viewBox="-34 -14 ${W+40} ${H+18}" style="max-width:${W+40}px">${months}${dl}${rects}</svg>`;
+  return s2;
+}
+
+/* daily trend area chart */
+function trend(daily){
+  if(daily.length<2)return null;
+  const s=el('<section><h2>📈 Daily Trend<span class="toggle"><button data-k="tokens" class="on">Tokens</button><button data-k="cost">Cost</button></span></h2><div class="panel"><div class="trendChart"></div></div></section>');
+  const host=s.querySelector(".trendChart");
+  function draw(kind){
+    const W=1100,H=260,pad=40;
+    const xs=daily.map((_,i)=>i);
+    const ys=daily.map(d=>kind==="cost"?d.cost:d.tokens);
+    const maxY=Math.max(1,...ys);
+    const px=i=>pad+ (W-pad-12)*(daily.length<2?0:i/(daily.length-1));
+    const py=v=>H-26-(H-26-12)*(v/maxY);
+    let path="",area="";
+    daily.forEach((d,i)=>{const x=px(i),y=py(ys[i]);path+=(i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)+" ";});
+    area=`M${px(0).toFixed(1)} ${(H-26)} `+daily.map((d,i)=>"L"+px(i).toFixed(1)+" "+py(ys[i]).toFixed(1)).join(" ")+` L${px(daily.length-1).toFixed(1)} ${H-26} Z`;
+    // y gridlines
+    let grid="";for(let g=0;g<=4;g++){const v=maxY*g/4,y=py(v);
+      grid+=`<line x1="${pad}" y1="${y}" x2="${W-12}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`+
+      `<text class="axis" x="4" y="${y+3}">${kind==="cost"?hMoney(v):hInt(v)}</text>`;}
+    // x labels (≈6)
+    let xl="";const step=Math.max(1,Math.floor(daily.length/6));
+    daily.forEach((d,i)=>{if(i%step===0)xl+=`<text class="axis" x="${px(i)}" y="${H-8}" text-anchor="middle">${d.date.slice(5)}</text>`;});
+    host.innerHTML=
+      `<svg class="chart" viewBox="0 0 ${W} ${H}">
+        <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--accent)" stop-opacity=".45"/>
+          <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+        ${grid}<path d="${area}" fill="url(#g1)"/>
+        <path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="2.4" stroke-linejoin="round"/>${xl}</svg>`;
+  }
+  draw("tokens");
+  s.querySelectorAll(".toggle button").forEach(b=>b.onclick=()=>{
+    s.querySelectorAll(".toggle button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");draw(b.dataset.k);});
+  return s;
+}
+
+function miniBars(arr,labels,title,hint,teal){
+  const max=Math.max(1,...arr);
+  const bars=arr.map(v=>`<div class="b ${teal?'teal':''}" style="height:${(100*v/max).toFixed(1)}%"><title>${v}</title></div>`).join("");
+  const xs=labels.map(l=>`<span>${l}</span>`).join("");
+  return el(`<div><h2 style="font-size:14px">${title} <span class="hint">${hint}</span></h2><div class="panel"><div class="mini">${bars}</div><div class="mini-x">${xs}</div></div></div>`);
+}
+
+function leaderboards(lb){
+  const defs={
+    longest:{t:"⏱ Longest",cols:[["project","Project"],["model","Model"],["date","Date"]],metric:["duration_min","min",x=>x+"m"]},
+    expensive:{t:"💸 Most expensive",cols:[["project","Project"],["model","Model"],["date","Date"]],metric:["cost","cost",hMoney]},
+    output:{t:"📤 Most output",cols:[["project","Project"],["model","Model"],["date","Date"]],metric:["output","tokens",hInt]},
+    context:{t:"🧠 Biggest context",cols:[["project","Project"],["model","Model"],["date","Date"]],metric:["peak_context","tokens",hInt]},
+  };
+  const keys=Object.keys(defs).filter(k=>(lb[k]||[]).length);
+  if(!keys.length)return null;
+  const s=el('<section><h2>🏆 Session Leaderboards</h2><div class="tabs"></div><div class="panel" id="lbBody"></div></section>');
+  const tabs=s.querySelector(".tabs");
+  function show(k){
+    tabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.k===k));
+    const def=defs[k],rows=lb[k];
+    let head=`<th>#</th>`+def.cols.map(c=>`<th>${c[1]}</th>`).join("")+`<th class="n">${def.metric[1]}</th><th class="n">cost</th>`;
+    let body=rows.map((r,i)=>`<tr><td class="rank">${i+1}</td>`+
+      def.cols.map(c=>`<td>${esc(r[c[0]])}${r.priced===false?'<span class="pill unpriced">unpriced</span>':''}</td>`).join("")+
+      `<td class="n">${def.metric[2](r[def.metric[0]])}</td><td class="n">${hMoney(r.cost)}</td></tr>`).join("");
+    s.querySelector("#lbBody").innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+  keys.forEach(k=>{const b=el(`<button data-k="${k}">${defs[k].t}</button>`);b.onclick=()=>show(k);tabs.appendChild(b);});
+  show(keys[0]);
+  return s;
+}
+
+function wrappedPanel(w){
+  if(!w||!w.sessions)return null;
+  const tp=(w.top_projects||[]).map((p,i)=>`<b>${esc(p.name)}</b> ${p.share}%`).join(" · ")||"—";
+  const bd=w.biggest_day?`${w.biggest_day.date} (${hInt(w.biggest_day.tokens)} tok)`:"—";
+  const ls=w.longest_session?`${w.longest_session.duration_min}m · ${esc(w.longest_session.project)}`:"—";
+  const stats=[
+    ["Sessions",hInt(w.sessions)],["Tokens",w.tokens_h],["Output",w.output_h],
+    ["Spend",w.cost_h],["Active days",hInt(w.active_days)],["File edits",hInt(w.edits)],
+  ];
+  const s=el('<section><h2>🎁 Claude Wrapped <span class="hint">your story · screenshot-ready</span></h2></section>');
+  const card=el(`<div class="wrapped"></div>`);
+  card.appendChild(el(`<div class="top">
+    <div class="persona"><div class="pe">${esc(w.persona.emoji)}</div>
+      <div><div class="pt">You are</div><div class="pn">${esc(w.persona.title)}</div>
+      <div class="pw">${esc(w.persona.why)}</div></div></div>
+    <div style="text-align:right;color:var(--muted);font-size:12px">ClaudeInsights<br><b style="color:var(--text)">${esc(w.period)}</b></div>
+  </div>`));
+  const wg=el('<div class="wgrid"></div>');
+  stats.forEach(([l,v])=>wg.appendChild(el(`<div class="wstat"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`)));
+  card.appendChild(wg);
+  card.appendChild(el(`<div class="wfoot">
+    <div>Top projects: ${tp}</div>
+    <div>Favorite model: <b>${esc(w.favorite_model||"—")}</b></div>
+    <div>Biggest day: <b>${bd}</b></div>
+    <div>Longest session: <b>${ls}</b></div>
+    <div>Cache saved: <b>${esc(w.cache_savings_h)}</b></div>
+  </div>`));
+  if(w.any_unpriced)card.appendChild(el('<div class="wfoot" style="color:var(--warn)">⚠ Some models are unpriced — spend shown is a lower bound.</div>'));
+  s.appendChild(card);
+  return s;
+}
+
+function section(title,hint,node){
+  const s=el(`<section><h2>${title}${hint?` <span class="hint">${hint}</span>`:""}</h2><div class="panel"></div></section>`);
+  s.querySelector(".panel").appendChild(node);return s;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const app=document.getElementById("app");app.innerHTML="";
+  if(!DATA||!DATA.totals||!DATA.totals.sessions){
+    app.appendChild(el('<div class="empty"><h2>No Claude Code logs found</h2><p class="muted">Run <code>claudeinsights</code> against <code>~/.claude/projects</code>, or pass <code>--logs PATH</code>.</p></div>'));
+    return;}
+  const d=DATA,m=d.meta;
+  app.appendChild(el(`<header class="hero">
+    <div class="brand"><div class="logo">◐</div>
+      <div><h1>ClaudeInsights</h1><div class="tag">See how you actually use Claude.</div></div></div>
+    <div class="period">Period <b>${esc(m.period||((d.totals.first_day||"")+" → "+(d.totals.last_day||"")))}</b><br>
+      ${esc(d.totals.sessions)} sessions · ${esc(m.n_files)} log files<br>
+      <span class="small">generated ${esc(m.generated_at)} · v${esc(m.version)} · 100% local</span></div>
+  </header>`));
+  if(m.any_unpriced)
+    app.appendChild(el(`<div class="banner">⚠ ${hInt(m.unpriced_tokens)} tokens came from models with no public price (local / synthetic). They count toward usage but contribute $0 to spend — the cost figure is a lower bound.</div>`));
+
+  // Each section is mounted independently: a failure in one never blanks
+  // the rest of the dashboard. (Belt and braces around hand-rolled charts.)
+  const mount=fn=>{try{const n=fn();if(n)app.appendChild(n);}catch(e){console.error("ClaudeInsights section failed:",e);}};
+
+  mount(()=>kpis(d));
+  mount(()=>insightFeed(d.insights));
+  mount(()=>heatmap(d.daily));
+  mount(()=>trend(d.daily));
+
+  // projects + models
+  mount(()=>{
+    const g1=el('<div class="grid2"></div>');
+    g1.appendChild(section("📂 Projects","by tokens",barList(d.by_project,{
+      name:p=>p.name,value:p=>p.tokens,limit:10,
+      tag:p=>p.priced?"":'<span class="pill unpriced">unpriced</span>',
+      label:p=>hInt(p.tokens)+" · "+hMoney(p.cost)})));
+    g1.appendChild(section("🤖 Models","usage & cost",barList(d.by_model,{
+      name:mm=>mm.name,value:mm=>mm.tokens,limit:10,
+      color:(_,i)=>i===0?"":"teal",
+      tag:mm=>mm.priced?"":'<span class="pill unpriced">unpriced</span>',
+      label:mm=>hInt(mm.tokens)+" · "+hMoney(mm.cost)})));
+    const sec=el('<section><h2>🧩 Breakdown</h2></section>');sec.appendChild(g1);return sec;
+  });
+
+  // tools
+  mount(()=>d.by_tool.length?section("🛠️ Tool Usage","calls across all sessions",barList(d.by_tool,{
+    name:t=>t.name,value:t=>t.count,limit:14,
+    color:(t)=>t.is_mcp?"violet":"teal",
+    tag:t=>t.is_mcp?'<span class="pill mcp">MCP</span>':"",
+    label:t=>hInt(t.count)+" · "+t.share+"%"})):null);
+
+  // hour + weekday
+  mount(()=>{
+    const g2=el('<div class="grid2"></div>');
+    g2.appendChild(miniBars(d.by_hour,["0","","","","","","6","","","","","","12","","","","","","18","","","","","23"],"🕐 By hour of day","when you work (local time)",false));
+    g2.appendChild(miniBars(d.by_weekday,["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"🗓 By weekday","your weekly rhythm",true));
+    const sec=el('<section></section>');sec.appendChild(g2);return sec;
+  });
+
+  mount(()=>leaderboards(d.leaderboards));
+  mount(()=>wrappedPanel(d.wrapped));
+
+  app.appendChild(el(`<footer>
+    <b>100% local & deterministic.</b> Every number above was computed from your own
+    <code>~/.claude/projects</code> JSONL logs on this machine. No data left your computer.
+    Re-running on the same logs yields identical output.<br>
+    Costs use public Anthropic list prices (input/output + cache multipliers); see <code>docs/METRICS.md</code>
+    for the exact formula behind each metric. Unpriced models contribute $0 to spend.<br>
+    Generated by <b>ClaudeInsights v${esc(m.version)}</b> · "See how you actually use Claude."
+  </footer>`));
+}
+render();
+</script>
+</body>
+</html>

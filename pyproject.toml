@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claudeinsights"
+version = "0.1.0"
+description = "See how you actually use Claude. The local-first analytics dashboard for Claude Code."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Ingrid Toulotte" }]
+keywords = [
+    "claude",
+    "claude-code",
+    "analytics",
+    "dashboard",
+    "tokens",
+    "observability",
+    "ai",
+    "developer-tools",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+]
+# Zero runtime dependencies. Pure standard library. On purpose.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ingridtoulotte/claudeinsights"
+Repository = "https://github.com/ingridtoulotte/claudeinsights"
+Issues = "https://github.com/ingridtoulotte/claudeinsights/issues"
+
+[project.scripts]
+claudeinsights = "claudeinsights.cli:main"
+ci = "claudeinsights.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# template.html lives inside the package dir, so it ships automatically.
+packages = ["claudeinsights"]
